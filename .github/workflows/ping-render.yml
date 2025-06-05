@@ -1,0 +1,13 @@
+name: Ping backend en Render
+
+on:
+  schedule:
+    - cron: '0 12 * * *'  # Todos los días a las 12:00 UTC (~9 AM ARG)
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Hacer ping a backend Render
+        run: curl -s -o /dev/null -w "%{http_code}" https://rejas-espaciales-backend-v2.onrender.com/api/ping
