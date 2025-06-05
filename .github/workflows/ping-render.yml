@@ -3,7 +3,8 @@ name: Ping backend en Render
 on:
   schedule:
     # - cron: '0 12 * * *'  # Todos los días a las 12:00 UTC (~9 AM ARG)
-    - cron: '0 15 * * *'  # Todos los días a las 15:00 UTC (~12 AM ARG)
+    - cron: '5 15 * * *'  # Todos los días a las 15:05 UTC (~12:05 PM ARG)
+
   workflow_dispatch:
 
 jobs:
