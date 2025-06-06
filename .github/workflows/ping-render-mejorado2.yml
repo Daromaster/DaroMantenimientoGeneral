@@ -23,14 +23,19 @@ jobs:
         id: supabase_check
         run: |
           echo "Verificando conexión con Supabase..."
-          RESPONSE=$(curl -s https://rejas-espaciales-backend-v2.onrender.com/info)
+          TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+          # Agregamos el timestamp como query parameter para identificar la consulta en los logs
+          RESPONSE=$(curl -s "https://rejas-espaciales-backend-v2.onrender.com/info?check_timestamp=$TIMESTAMP")
           HTTP_CODE=$?
+          
+          echo "Timestamp de verificación: $TIMESTAMP"
           
           # Verificar si la respuesta contiene totalScores y no tiene error
           if echo "$RESPONSE" | grep -q "totalScores" && ! echo "$RESPONSE" | grep -q "error"; then
             echo "✅ Conexión con Supabase exitosa"
             echo "Response: $RESPONSE"
             echo "success=true" >> $GITHUB_OUTPUT
+            echo "timestamp=$TIMESTAMP" >> $GITHUB_OUTPUT
           else
             echo "❌ Error en la conexión con Supabase"
             echo "Response: $RESPONSE"
@@ -49,4 +54,5 @@ jobs:
         if: success()
         run: |
           echo "✅ Backend y Supabase están funcionando correctamente"
-          date >> successful_checks.log
+          echo "Timestamp de la verificación exitosa: ${{ steps.supabase_check.outputs.timestamp }}"
+          echo "$(date) - Check timestamp: ${{ steps.supabase_check.outputs.timestamp }}" >> successful_checks.log
