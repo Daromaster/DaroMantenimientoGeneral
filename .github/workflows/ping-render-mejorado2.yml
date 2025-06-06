@@ -1,4 +1,4 @@
-name: Ping Render + Supabase
+name: Ping Render Mejorado 2 + Supabase
 
 on:
   schedule:
