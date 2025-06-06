@@ -1,0 +1,52 @@
+name: Ping Render + Supabase
+
+on:
+  schedule:
+    # Ejecutar cada 6 horas para mantener la conexión activa
+    - cron: '0 */6 * * *'  # A las 00:00, 06:00, 12:00, 18:00 UTC
+    
+  workflow_dispatch:     # Permite ejecutarlo manualmente desde GitHub
+
+jobs:
+  health-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verificar estado del backend
+        id: health_check
+        run: |
+          echo "Verificando estado del backend..."
+          HEALTH_STATUS=$(curl -s https://rejas-espaciales-backend-v2.onrender.com/health)
+          echo "Health check response: $HEALTH_STATUS"
+          echo "status=$HEALTH_STATUS" >> $GITHUB_OUTPUT
+
+      - name: Verificar conexión con Supabase
+        id: supabase_check
+        run: |
+          echo "Verificando conexión con Supabase..."
+          RESPONSE=$(curl -s https://rejas-espaciales-backend-v2.onrender.com/info)
+          HTTP_CODE=$?
+          
+          # Verificar si la respuesta contiene totalScores y no tiene error
+          if echo "$RESPONSE" | grep -q "totalScores" && ! echo "$RESPONSE" | grep -q "error"; then
+            echo "✅ Conexión con Supabase exitosa"
+            echo "Response: $RESPONSE"
+            echo "success=true" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Error en la conexión con Supabase"
+            echo "Response: $RESPONSE"
+            echo "success=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Verificar estado general
+        if: steps.supabase_check.outputs.success == 'false'
+        run: |
+          echo "❌ La verificación de Supabase falló"
+          echo "Intentando recuperar más información..."
+          curl -v https://rejas-espaciales-backend-v2.onrender.com/status
+          exit 1
+
+      - name: Notificar éxito
+        if: success()
+        run: |
+          echo "✅ Backend y Supabase están funcionando correctamente"
+          date >> successful_checks.log
