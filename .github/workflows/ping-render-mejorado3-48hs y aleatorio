@@ -1,4 +1,4 @@
-name: Ping Render Mejorado (cada 48 h + jitter)
+name: Ping Render Mejorado 3 (cada 48 h + jitter)
 
 on:
   schedule:
