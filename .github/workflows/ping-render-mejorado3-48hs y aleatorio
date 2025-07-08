@@ -1,0 +1,78 @@
+name: Ping Render Mejorado (cada 48 h + jitter)
+
+on:
+  schedule:
+    # 03:07 UTC los días alternos  →  00:07 Argentina/GMT‑3
+    - cron: '7 3 */2 * *'
+  workflow_dispatch:   # permite ejecución manual
+
+jobs:
+  health-check:
+    runs-on: ubuntu-latest
+    # opcional: evita que se acumulen ejecuciones si la anterior sigue viva
+    concurrency: ping-render
+
+    steps:
+      # 1. Dispersión de la llamada (0‑15 min) para no coincidir con otros runners
+      - name: Jitter aleatorio 0‑900 s
+        run: sleep $((RANDOM%900))
+
+      # 2. Ping al backend con cinco reintentos y back‑off exponencial ante 429
+      - name: Verificar estado del backend (con back‑off si 429)
+        id: backend_check
+        run: |
+          set -e
+          echo "Verificando estado del backend..."
+          for i in {1..5}; do
+            HTTP_CODE=$(curl -s -o /dev/null -w '%{http_code}' \
+              --connect-timeout 10 \
+              https://rejas-espaciales-backend-v2.onrender.com/health)
+            echo "Intento $i → HTTP $HTTP_CODE"
+            if [ "$HTTP_CODE" = "200" ]; then
+              echo "backend_ok=true" >> $GITHUB_OUTPUT
+              exit 0
+            fi
+            # Si es 429, esperamos 20 s, 40 s, 60 s…
+            if [ "$HTTP_CODE" = "429" ]; then
+              sleep $((20*i))
+            else
+              echo "Código inesperado $HTTP_CODE"
+              break
+            fi
+          done
+          echo "backend_ok=false" >> $GITHUB_OUTPUT
+          exit 1
+
+      # 3. Chequeo de Supabase solo si el backend respondió bien
+      - name: Verificar conexión con Supabase
+        if: steps.backend_check.outputs.backend_ok == 'true'
+        id: supabase_check
+        run: |
+          set -e
+          echo "Verificando conexión con Supabase..."
+          TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+          echo "timestamp=$TIMESTAMP" >> $GITHUB_OUTPUT
+          RESPONSE=$(curl -s \
+            "https://rejas-espaciales-backend-v2.onrender.com/info?check_timestamp=$TIMESTAMP")
+          echo "Response: $RESPONSE"
+
+          if echo "$RESPONSE" | grep -q "totalScores" && ! echo "$RESPONSE" | grep -q "error"; then
+            echo "supabase_ok=true" >> $GITHUB_OUTPUT
+          else
+            echo "supabase_ok=false" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+      # 4. Diagnóstico extra — solo si algo falló
+      - name: Diagnóstico avanzado
+        if: failure()
+        run: |
+          echo "❌ Alguna verificación falló; recopilando más información…"
+          curl -v https://rejas-espaciales-backend-v2.onrender.com/status || true
+
+      # 5. Mensaje de éxito (se ejecuta solo si todo salió bien)
+      - name: Notificar éxito
+        if: success()
+        run: |
+          echo "✅ Backend y Supabase están funcionando correctamente"
+          echo "Timestamp de la verificación exitosa: ${{ steps.supabase_check.outputs.timestamp }}"
