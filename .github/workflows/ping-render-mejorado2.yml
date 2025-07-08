@@ -3,7 +3,7 @@ name: Ping Render Mejorado 2 + Supabase
 on:
   schedule:
     # Ejecutar cada 6 horas para mantener la conexión activa
-    - cron: '0 */6 * * *'  # A las 00:00, 06:00, 12:00, 18:00 UTC
+  # - cron: '0 */6 * * *'  # A las 00:00, 06:00, 12:00, 18:00 UTC
     
   workflow_dispatch:     # Permite ejecutarlo manualmente desde GitHub
 
